@@ -28,7 +28,14 @@ const run = async () => {
 
     //!USERS RELATED APIS
     app.get("/users", async (req, res) => {
+      const searchText = req.query.searchText;
       const query = {};
+      if (searchText) {
+        query.$or = [
+          { userName: { $regex: searchText, $options: "i" } },
+          { userEmail: { $regex: searchText, $options: "i" } },
+        ];
+      }
       const cursor = usersCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
@@ -42,6 +49,14 @@ const run = async () => {
       }
       const result = await usersCollection.findOne(query);
       res.send(result);
+    });
+
+    app.get("/users/:email/role", async (req, res) => {
+      const query = {
+        userEmail: req.params.email,
+      };
+      const user = await usersCollection.findOne(query);
+      res.send({ role: user.userRole || "user" });
     });
 
     app.post("/users", async (req, res) => {
