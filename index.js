@@ -4,7 +4,7 @@ const cors = require("cors");
 const port = process.env.PORT || 5016;
 require("dotenv").config();
 // mongoDB connection
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@crud-operation.iftbw43.mongodb.net/?appName=CRUD-operation`;
 const client = new MongoClient(uri, {
   serverApi: {
@@ -61,6 +61,20 @@ const run = async () => {
       } catch (error) {
         res.status(500).send({ message: error.message });
       }
+    });
+
+    app.patch("/users/:id/role", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const updatedDoc = {
+        $set: {
+          userRole: req.body.userRole,
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
