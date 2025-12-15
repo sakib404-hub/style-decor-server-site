@@ -34,6 +34,16 @@ const run = async () => {
       res.send(result);
     });
 
+    app.get("/myUserInfo", async (req, res) => {
+      const query = {};
+      const userEmail = req.query.email;
+      if (userEmail) {
+        query.userEmail = userEmail;
+      }
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       try {
         const newUser = req.body;
@@ -41,15 +51,12 @@ const run = async () => {
         const userExist = await usersCollection.findOne({
           userEmail: userEmail,
         });
-
         if (userExist) {
           return res.status(409).send({ message: "User already exists" });
         }
         newUser.createdAt = new Date();
         newUser.updatedAt = new Date();
-
         const result = await usersCollection.insertOne(newUser);
-
         res.status(201).send({ message: "User Created" }, result);
       } catch (error) {
         res.status(500).send({ message: error.message });
