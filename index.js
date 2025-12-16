@@ -116,6 +116,18 @@ const run = async () => {
       res.send(result);
     });
 
+    app.get("/latest-services", async (req, res) => {
+      try {
+        const limit = parseInt(req.query.limit) || 5;
+        const cursor = servicesCollection.find().limit(limit);
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
     res.status(503).send("Database Unavailable, Connection Failed!");
