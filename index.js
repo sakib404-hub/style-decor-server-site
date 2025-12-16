@@ -26,6 +26,7 @@ const run = async () => {
     const db = client.db("style-decor-db");
     const usersCollection = db.collection("users");
     const servicesCollection = db.collection("services");
+    const bookingsCollection = db.collection("bookings");
 
     //!USERS RELATED APIS
     app.get("/users", async (req, res) => {
@@ -107,7 +108,7 @@ const run = async () => {
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/services/:id/deatils", async (req, res) => {
+    app.get("/services/:id/details", async (req, res) => {
       const id = req.params.id;
       const query = {
         _id: new ObjectId(id),
@@ -126,6 +127,26 @@ const run = async () => {
         console.error(error);
         res.status(500).send({ message: "Internal Server Error" });
       }
+    });
+
+    //! BOOKINGS RELATED APIS
+    app.get("/bookings", async (req, res) => {
+      const query = {};
+      const email = req.query.email;
+      if (email) {
+        query.customerEmail = email;
+      }
+      const cursor = bookingsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.post("/bookings", async (req, res) => {
+      const newBooking = req.body;
+
+      console.log(newBooking);
+      const result = await bookingsCollection.insertOne(newBooking);
+      res.send(result);
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
