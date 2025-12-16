@@ -25,6 +25,7 @@ const run = async () => {
     //creating the database and the collection
     const db = client.db("style-decor-db");
     const usersCollection = db.collection("users");
+    const servicesCollection = db.collection("services");
 
     //!USERS RELATED APIS
     app.get("/users", async (req, res) => {
@@ -89,6 +90,29 @@ const run = async () => {
         },
       };
       const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    //! SERVICES RELATED APIS
+    app.get("/services", async (req, res) => {
+      const query = {};
+      const searchText = req.query.searchText;
+      if (searchText) {
+        query.$or = [
+          { packageName: { $regex: searchText, $options: "i" } },
+          { description: { $regex: searchText, $options: "i" } },
+        ];
+      }
+      const cursor = servicesCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    app.get("/services/:id/deatils", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await servicesCollection.findOne(query);
       res.send(result);
     });
 
