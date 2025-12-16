@@ -3,6 +3,8 @@ const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5016;
 require("dotenv").config();
+// stripe
+const stripe = require("stripe")(process.env.SECRET_KEY);
 // mongoDB connection
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@crud-operation.iftbw43.mongodb.net/?appName=CRUD-operation`;
@@ -147,6 +149,36 @@ const run = async () => {
       console.log(newBooking);
       const result = await bookingsCollection.insertOne(newBooking);
       res.send(result);
+    });
+
+    //! PAYMENT RELATED APIS
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body;
+      const cost = parseInt(paymentInfo.cost) * 100;
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            price_data: {
+              currency: "BDT",
+              unit_amount: cost,
+              product_data: {
+                name: `Please Pay for ${paymentInfo.serviceName}`,
+                images: [paymentInfo.serviceImg],
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          serviceId: paymentInfo.serviceId,
+          serviceName: paymentInfo.serviceName,
+        },
+        mode: "payment",
+        customer_email: paymentInfo.customerEmail,
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
+      });
+      res.send({ url: session.url });
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
