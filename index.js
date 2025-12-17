@@ -20,6 +20,16 @@ const client = new MongoClient(uri, {
 app.use(express.json());
 app.use(cors());
 
+// generating trackingId
+const generateStyleDecorTrackingId = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let id = "SD-"; // prefix for styleDecor
+  for (let i = 0; i < 6; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+};
+
 const run = async () => {
   try {
     //connecting with the mongo db and checking if the connection is successful
@@ -29,6 +39,7 @@ const run = async () => {
     const usersCollection = db.collection("users");
     const servicesCollection = db.collection("services");
     const bookingsCollection = db.collection("bookings");
+    const paymentsCollection = db.collection("payments");
 
     //!USERS RELATED APIS
     app.get("/users", async (req, res) => {
@@ -145,9 +156,16 @@ const run = async () => {
 
     app.post("/bookings", async (req, res) => {
       const newBooking = req.body;
-
-      console.log(newBooking);
       const result = await bookingsCollection.insertOne(newBooking);
+      res.send(result);
+    });
+
+    app.delete("/bookings/:id/delete", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await bookingsCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -172,13 +190,87 @@ const run = async () => {
         metadata: {
           serviceId: paymentInfo.serviceId,
           serviceName: paymentInfo.serviceName,
+          bookingId: paymentInfo.bookingId,
         },
         mode: "payment",
         customer_email: paymentInfo.customerEmail,
-        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
       });
       res.send({ url: session.url });
+    });
+
+    app.patch("/payment-success", async (req, res) => {
+      try {
+        const session_id = req.query.session_id;
+        const session = await stripe.checkout.sessions.retrieve(session_id);
+
+        const transactionId = session.payment_intent;
+
+        // Check if payment already exists
+        const paymentExists = await paymentsCollection.findOne({
+          transactionId,
+        });
+        if (paymentExists) {
+          return res.send({
+            success: true,
+            message: "Payment already exists",
+            transactionId: transactionId,
+            trackingId: trackingId,
+          });
+        }
+
+        if (session.payment_status === "paid") {
+          // Update booking/payment status
+          const bookingId = session.metadata.bookingId;
+          const trackingId = generateStyleDecorTrackingId();
+          const query = { _id: new ObjectId(bookingId) };
+          const updatedDoc = {
+            $set: {
+              paymentStatus: "Paid",
+              serviceStatus: "Pending Assigned Decorators",
+              trackingId: trackingId,
+            },
+          };
+          const updateResult = await bookingsCollection.updateOne(
+            query,
+            updatedDoc
+          );
+
+          // Insert payment record
+          const payment = {
+            transactionId: transactionId,
+            amount: session.amount_total / 100,
+            name: session.metadata.percelName,
+            currency: session.currency,
+            customerEmail: session.customer_email,
+            parcelId: session.metadata.percelId,
+            paymentStatus: session.payment_status,
+            paidAt: new Date(),
+            trackingId: trackingId,
+          };
+          const insertedPayment = await paymentsCollection.insertOne(payment);
+
+          return res.send({
+            success: true,
+            updatedBooking: updateResult,
+            paymentInfo: insertedPayment,
+            transactionId: transactionId,
+            trackingId: trackingId,
+          });
+        }
+
+        res.send({ success: false });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+    app.get("/payments", async (req, res) => {
+      const cursor = paymentsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
