@@ -81,8 +81,10 @@ const run = async () => {
         const userExist = await usersCollection.findOne({
           userEmail: userEmail,
         });
+        console.log(userExist);
+        console.log(newUser);
         if (userExist) {
-          return res.status(409).send({ message: "User already exists" });
+          return res.status(200).send({ message: "User Updated!" });
         }
         newUser.createdAt = new Date();
         newUser.updatedAt = new Date();
@@ -94,16 +96,36 @@ const run = async () => {
     });
 
     app.patch("/users/:id/role", async (req, res) => {
-      const id = req.params.id;
+      try {
+        const id = req.params.id;
+        const { userRole } = req.body;
+        let status = "";
+        if (userRole === "decorator") {
+          status = "available";
+        }
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            userRole,
+            status,
+          },
+        };
+        const result = await usersCollection.updateOne(query, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update role" });
+      }
+    });
+
+    app.get("/users/:status/decorator", async (req, res) => {
+      const status = req.params.status;
       const query = {
-        _id: new ObjectId(id),
+        status: status,
+        userRole: "decorator",
       };
-      const updatedDoc = {
-        $set: {
-          userRole: req.body.userRole,
-        },
-      };
-      const result = await usersCollection.updateOne(query, updatedDoc);
+      const cursor = usersCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
     });
 
@@ -149,6 +171,16 @@ const run = async () => {
       if (email) {
         query.customerEmail = email;
       }
+      const cursor = bookingsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/paidBookings", async (req, res) => {
+      const status = req.query.status;
+      const query = {
+        paymentStatus: status,
+      };
       const cursor = bookingsCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
@@ -208,15 +240,16 @@ const run = async () => {
         const transactionId = session.payment_intent;
 
         // Check if payment already exists
-        const paymentExists = await paymentsCollection.findOne({
-          transactionId,
-        });
+        const query = {
+          transactionId: transactionId,
+        };
+        const paymentExists = await paymentsCollection.findOne(query);
         if (paymentExists) {
           return res.send({
             success: true,
             message: "Payment already exists",
             transactionId: transactionId,
-            trackingId: trackingId,
+            trackingId: paymentExists.trackingId,
           });
         }
 
@@ -228,7 +261,7 @@ const run = async () => {
           const updatedDoc = {
             $set: {
               paymentStatus: "Paid",
-              serviceStatus: "Pending Assigned Decorators",
+              serviceStatus: "Paid–Waiting for Assignment",
               trackingId: trackingId,
             },
           };
@@ -268,7 +301,12 @@ const run = async () => {
     });
 
     app.get("/payments", async (req, res) => {
-      const cursor = paymentsCollection.find();
+      const query = {};
+      const email = req.query.email;
+      if (email) {
+        query.customerEmail = email;
+      }
+      const cursor = paymentsCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
