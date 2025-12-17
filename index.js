@@ -81,8 +81,6 @@ const run = async () => {
         const userExist = await usersCollection.findOne({
           userEmail: userEmail,
         });
-        console.log(userExist);
-        console.log(newUser);
         if (userExist) {
           return res.status(200).send({ message: "User Updated!" });
         }
@@ -134,6 +132,35 @@ const run = async () => {
     app.patch("/bookings/:id/assign", async (req, res) => {
       const bookingId = req.params.id;
       const { decoratorId } = req.body;
+      const queryBooking = {
+        _id: new ObjectId(bookingId),
+      };
+      const queryUser = {
+        _id: new ObjectId(decoratorId),
+      };
+      const decorator = await usersCollection.findOne(queryUser);
+      const updatedBookingDoc = {
+        $set: {
+          decoratorName: decorator.userName,
+          decoratorEmail: decorator.userEmail,
+          decoratorId: decoratorId,
+          serviceStatus: "Decorator Assigned",
+        },
+      };
+      const updatedUserDoc = {
+        $set: {
+          status: "assigned",
+        },
+      };
+      const updatedBookingResult = await bookingsCollection.updateOne(
+        queryBooking,
+        updatedBookingDoc
+      );
+      const updatedUserResult = await usersCollection.updateOne(
+        queryUser,
+        updatedUserDoc
+      );
+      res.send({ message: true, updatedBookingResult, updatedUserResult });
     });
 
     //! SERVICES RELATED APIS
@@ -178,8 +205,27 @@ const run = async () => {
       if (email) {
         query.customerEmail = email;
       }
+      const decoratorEmail = req.query.decoratorEmail;
+      if (decoratorEmail) {
+        query.decoratorEmail = decoratorEmail;
+      }
       const cursor = bookingsCollection.find(query);
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.patch("/bookings/:id/update", async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const updatedDoc = {
+        $set: {
+          serviceStatus: status,
+        },
+      };
+      const result = await bookingsCollection.updateOne(query, updatedDoc);
       res.send(result);
     });
 
