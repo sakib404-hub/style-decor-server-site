@@ -129,6 +129,13 @@ const run = async () => {
       res.send(result);
     });
 
+    //?Updating both the user inforamtion and the booking information
+
+    app.patch("/bookings/:id/assign", async (req, res) => {
+      const bookingId = req.params.id;
+      const { decoratorId } = req.body;
+    });
+
     //! SERVICES RELATED APIS
     app.get("/services", async (req, res) => {
       const query = {};
