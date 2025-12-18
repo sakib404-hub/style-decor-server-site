@@ -239,6 +239,11 @@ const run = async () => {
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
+    app.post("/services", async (req, res) => {
+      const newService = req.body;
+      const result = await servicesCollection.insertOne(newService);
+      res.send(result);
+    });
 
     //! BOOKINGS RELATED APIS
     app.get("/bookings", verifyToken, async (req, res) => {
