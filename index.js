@@ -520,6 +520,52 @@ const run = async () => {
       }
     });
 
+    app.get("/dashboard/user/summary", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+        // Total bookings (all statuses)
+        const totalBookings = await bookingsCollection.countDocuments({
+          customerEmail: email,
+        });
+        // Upcoming services (status not completed)
+        const upcomingServices = await bookingsCollection.countDocuments({
+          customerEmail: email,
+          serviceStatus: { $ne: "Completed" },
+        });
+        // Completed services
+        const completedServices =
+          await completedServiceCollection.countDocuments({
+            customerEmail: email,
+          });
+        // Total paid amount from payments
+        const totalPaidData = await paymentsCollection
+          .aggregate([
+            { $match: { customerEmail: email } },
+            { $group: { _id: null, totalPaid: { $sum: "$amount" } } },
+          ])
+          .toArray();
+        const totalPaid = totalPaidData[0]?.totalPaid || 0;
+        // Optional: pending payments
+        const pendingPayments = await bookingsCollection.countDocuments({
+          customerEmail: email,
+          paymentStatus: { $ne: "Paid" },
+        });
+        res.send({
+          totalBookings,
+          upcomingServices,
+          completedServices,
+          totalPaid,
+          pendingPayments,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "User dashboard summary failed" });
+      }
+    });
+
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
     res.status(503).send("Database Unavailable, Connection Failed!");
