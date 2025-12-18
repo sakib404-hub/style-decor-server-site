@@ -166,18 +166,33 @@ const run = async () => {
 
     //! SERVICES RELATED APIS
     app.get("/services", async (req, res) => {
-      const query = {};
-      const searchText = req.query.searchText;
-      if (searchText) {
-        query.$or = [
-          { packageName: { $regex: searchText, $options: "i" } },
-          { description: { $regex: searchText, $options: "i" } },
-        ];
+      try {
+        const query = {};
+        const searchText = req.query.searchText;
+        if (searchText) {
+          query.$or = [
+            { packageName: { $regex: searchText, $options: "i" } },
+            { description: { $regex: searchText, $options: "i" } },
+          ];
+        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const skip = (page - 1) * limit;
+        const cursor = servicesCollection.find(query).skip(skip).limit(limit);
+        const result = await cursor.toArray();
+        const total = await servicesCollection.countDocuments(query);
+        res.send({
+          services: result,
+          total,
+          page,
+          pages: Math.ceil(total / limit),
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal Server Error" });
       }
-      const cursor = servicesCollection.find(query);
-      const result = await cursor.toArray();
-      res.send(result);
     });
+
     app.get("/services/:id/details", async (req, res) => {
       const id = req.params.id;
       const query = {
@@ -210,7 +225,7 @@ const run = async () => {
       if (decoratorEmail) {
         query.decoratorEmail = decoratorEmail;
       }
-      const cursor = bookingsCollection.find(query);
+      const cursor = bookingsCollection.find(query).sort({ bookingDate: -1 });
       const result = await cursor.toArray();
       res.send(result);
     });
