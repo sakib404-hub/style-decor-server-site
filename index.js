@@ -405,6 +405,26 @@ const run = async () => {
       }
     });
 
+    app.get("/completedService", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+        const query = {
+          $or: [{ customerEmail: email }, { decoratorEmail: email }],
+        };
+        const result = await completedServiceCollection
+          .find(query)
+          .sort({ completedAt: -1 })
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
     res.status(503).send("Database Unavailable, Connection Failed!");
