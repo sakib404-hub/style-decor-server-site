@@ -40,6 +40,7 @@ const run = async () => {
     const servicesCollection = db.collection("services");
     const bookingsCollection = db.collection("bookings");
     const paymentsCollection = db.collection("payments");
+    const completedServiceCollection = db.collection("completedService");
 
     //!USERS RELATED APIS
     app.get("/users", async (req, res) => {
@@ -362,6 +363,46 @@ const run = async () => {
       const cursor = paymentsCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
+    });
+
+    //! COMPLETED SERVICES
+    app.post("/completedService", async (req, res) => {
+      try {
+        const { bookingId } = req.body;
+
+        if (!bookingId) {
+          return res.status(400).send({ message: "Booking ID is required" });
+        }
+
+        const queryBooking = { _id: new ObjectId(bookingId) };
+
+        // 1. Find booking
+        const booking = await bookingsCollection.findOne(queryBooking);
+        if (!booking) {
+          return res.status(404).send({ message: "Booking not found" });
+        }
+
+        // 2. Update decorator availability
+        await usersCollection.updateOne(
+          { userEmail: booking.decoratorEmail },
+          { $set: { status: "available" } }
+        );
+
+        // 3. Insert into completed services
+        await completedServiceCollection.insertOne({
+          ...booking,
+          completedAt: new Date(),
+          status: "completed",
+        });
+
+        // 4. Remove from bookings
+        await bookingsCollection.deleteOne(queryBooking);
+
+        res.send({ message: "Service marked as completed successfully" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
