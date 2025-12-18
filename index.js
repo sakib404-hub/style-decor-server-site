@@ -17,8 +17,8 @@ const client = new MongoClient(uri, {
 });
 
 // firebase admin
-var admin = require("firebase-admin");
-var serviceAccount = require("./style-decor-admin.json");
+const admin = require("firebase-admin");
+const serviceAccount = require("./style-decor-admin.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -38,12 +38,19 @@ const generateStyleDecorTrackingId = () => {
 };
 
 // varifying the jwt token
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization;
   if (!token) {
     return res.status(401).send({ message: "UnAuthorized Access!" });
   }
-  next();
+  try {
+    const tokenId = token.split(" ")[1];
+    const decoded = await admin.auth().verifyIdToken(tokenId);
+    req.decodedEmail = decoded.email;
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "UnAuthorized Access!" });
+  }
 };
 
 const run = async () => {
@@ -78,6 +85,10 @@ const run = async () => {
       const userEmail = req.query.email;
       if (userEmail) {
         query.userEmail = userEmail;
+        //checking email
+        if (userEmail !== req.decodedEmail) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
       }
       const result = await usersCollection.findOne(query);
       res.send(result);
