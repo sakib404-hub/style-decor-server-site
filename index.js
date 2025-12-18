@@ -66,7 +66,7 @@ const run = async () => {
     const completedServiceCollection = db.collection("completedService");
 
     //!USERS RELATED APIS
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const searchText = req.query.searchText;
       const query = {};
       if (searchText) {
@@ -94,7 +94,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.get("/users/:email/role", async (req, res) => {
+    app.get("/users/:email/role", verifyToken, async (req, res) => {
       const query = {
         userEmail: req.params.email,
       };
@@ -102,7 +102,7 @@ const run = async () => {
       res.send({ role: user.userRole || "user" });
     });
 
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyToken, async (req, res) => {
       try {
         const newUser = req.body;
         const userEmail = newUser.userEmail;
@@ -121,7 +121,7 @@ const run = async () => {
       }
     });
 
-    app.patch("/users/:id/role", async (req, res) => {
+    app.patch("/users/:id/role", verifyToken, async (req, res) => {
       try {
         const id = req.params.id;
         const { userRole } = req.body;
@@ -144,7 +144,7 @@ const run = async () => {
       }
     });
 
-    app.get("/users/:status/decorator", async (req, res) => {
+    app.get("/users/:status/decorator", verifyToken, async (req, res) => {
       const status = req.params.status;
       const query = {
         status: status,
@@ -157,7 +157,7 @@ const run = async () => {
 
     //?Updating both the user inforamtion and the booking information
 
-    app.patch("/bookings/:id/assign", async (req, res) => {
+    app.patch("/bookings/:id/assign", verifyToken, async (req, res) => {
       const bookingId = req.params.id;
       const { decoratorId } = req.body;
       const queryBooking = {
@@ -219,7 +219,6 @@ const run = async () => {
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
-
     app.get("/services/:id/details", async (req, res) => {
       const id = req.params.id;
       const query = {
@@ -242,7 +241,7 @@ const run = async () => {
     });
 
     //! BOOKINGS RELATED APIS
-    app.get("/bookings", async (req, res) => {
+    app.get("/bookings", verifyToken, async (req, res) => {
       const query = {};
       const email = req.query.email;
       if (email) {
@@ -257,7 +256,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.patch("/bookings/:id/update", async (req, res) => {
+    app.patch("/bookings/:id/update", verifyToken, async (req, res) => {
       const id = req.params.id;
       const { status } = req.body;
       const query = {
@@ -272,7 +271,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.get("/paidBookings", async (req, res) => {
+    app.get("/paidBookings", verifyToken, async (req, res) => {
       const status = req.query.status;
       const query = {
         paymentStatus: status,
@@ -282,13 +281,13 @@ const run = async () => {
       res.send(result);
     });
 
-    app.post("/bookings", async (req, res) => {
+    app.post("/bookings", verifyToken, async (req, res) => {
       const newBooking = req.body;
       const result = await bookingsCollection.insertOne(newBooking);
       res.send(result);
     });
 
-    app.delete("/bookings/:id/delete", async (req, res) => {
+    app.delete("/bookings/:id/delete", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = {
         _id: new ObjectId(id),
@@ -298,7 +297,7 @@ const run = async () => {
     });
 
     //! PAYMENT RELATED APIS
-    app.post("/create-checkout-session", async (req, res) => {
+    app.post("/create-checkout-session", verifyToken, async (req, res) => {
       const paymentInfo = req.body;
       const cost = parseInt(paymentInfo.cost) * 100;
       const session = await stripe.checkout.sessions.create({
@@ -328,7 +327,7 @@ const run = async () => {
       res.send({ url: session.url });
     });
 
-    app.patch("/payment-success", async (req, res) => {
+    app.patch("/payment-success", verifyToken, async (req, res) => {
       try {
         const session_id = req.query.session_id;
         const session = await stripe.checkout.sessions.retrieve(session_id);
@@ -396,7 +395,7 @@ const run = async () => {
       }
     });
 
-    app.get("/payments", async (req, res) => {
+    app.get("/payments", verifyToken, async (req, res) => {
       const query = {};
       const email = req.query.email;
       if (email) {
@@ -408,7 +407,7 @@ const run = async () => {
     });
 
     //! COMPLETED SERVICES
-    app.post("/completedService", async (req, res) => {
+    app.post("/completedService", verifyToken, async (req, res) => {
       try {
         const { bookingId } = req.body;
 
@@ -447,7 +446,7 @@ const run = async () => {
       }
     });
 
-    app.get("/completedService", async (req, res) => {
+    app.get("/completedService", verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
         if (!email) {
@@ -470,7 +469,7 @@ const run = async () => {
     //! DashBoard Summery Api EndPoints
 
     // for dashboard
-    app.get("/dashboard/admin/summary", async (req, res) => {
+    app.get("/dashboard/admin/summary", verifyToken, async (req, res) => {
       try {
         const COMMISSION_RATE = 0.6;
         // Total users
@@ -521,7 +520,7 @@ const run = async () => {
       }
     });
 
-    app.get("/dashboard/decorator/summary", async (req, res) => {
+    app.get("/dashboard/decorator/summary", verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
         if (!email) {
@@ -562,7 +561,7 @@ const run = async () => {
       }
     });
 
-    app.get("/dashboard/user/summary", async (req, res) => {
+    app.get("/dashboard/user/summary", verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
         if (!email) {
