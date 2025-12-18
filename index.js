@@ -16,6 +16,13 @@ const client = new MongoClient(uri, {
   },
 });
 
+// firebase admin
+var admin = require("firebase-admin");
+var serviceAccount = require("./style-decor-admin.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 // middlewares
 app.use(express.json());
 app.use(cors());
@@ -28,6 +35,15 @@ const generateStyleDecorTrackingId = () => {
     id += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return id;
+};
+
+// varifying the jwt token
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    return res.status(401).send({ message: "UnAuthorized Access!" });
+  }
+  next();
 };
 
 const run = async () => {
@@ -57,7 +73,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.get("/myUserInfo", async (req, res) => {
+    app.get("/myUserInfo", verifyToken, async (req, res) => {
       const query = {};
       const userEmail = req.query.email;
       if (userEmail) {
