@@ -425,6 +425,101 @@ const run = async () => {
       }
     });
 
+    //! DashBoard Summery Api EndPoints
+
+    // for dashboard
+    app.get("/dashboard/admin/summary", async (req, res) => {
+      try {
+        const COMMISSION_RATE = 0.6;
+        // Total users
+        const totalUsers = await usersCollection.countDocuments();
+        // Total decorators
+        const totalDecorators = await usersCollection.countDocuments({
+          userRole: "decorator",
+        });
+        // Total bookings (active + completed)
+        const totalBookings = await bookingsCollection.countDocuments();
+        // Total completed services
+        const totalCompleted =
+          await completedServiceCollection.countDocuments();
+        // Total revenue (sum of all payments)
+        const totalRevenueData = await paymentsCollection
+          .aggregate([
+            { $group: { _id: null, totalRevenue: { $sum: "$amount" } } },
+          ])
+          .toArray();
+        const totalRevenue = totalRevenueData[0]?.totalRevenue || 0;
+        // Total potential decorator earnings from completed services
+        const totalDecoratorEarningsData = await completedServiceCollection
+          .aggregate([
+            {
+              $group: {
+                _id: null,
+                totalEarnings: {
+                  $sum: { $multiply: ["$price", COMMISSION_RATE] },
+                },
+              },
+            },
+          ])
+          .toArray();
+        const totalDecoratorEarnings = Math.round(
+          totalDecoratorEarningsData[0]?.totalEarnings || 0
+        );
+        res.send({
+          totalUsers,
+          totalDecorators,
+          totalBookings,
+          totalCompleted,
+          totalRevenue,
+          totalDecoratorEarnings,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to load admin dashboard" });
+      }
+    });
+
+    app.get("/dashboard/decorator/summary", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+        const COMMISSION_RATE = 0.6;
+        const assignedServices = await bookingsCollection.countDocuments({
+          decoratorEmail: email,
+        });
+
+        const earningsData = await completedServiceCollection
+          .aggregate([
+            { $match: { decoratorEmail: email } },
+            {
+              $group: {
+                _id: null,
+                totalCompleted: { $sum: 1 },
+                totalEarning: {
+                  $sum: { $multiply: ["$price", COMMISSION_RATE] },
+                },
+              },
+            },
+          ])
+          .toArray();
+        const decorator = await usersCollection.findOne(
+          { userEmail: email },
+          { projection: { status: 1 } }
+        );
+        res.send({
+          assignedServices,
+          completedServices: earningsData[0]?.totalCompleted || 0,
+          totalEarning: Math.round(earningsData[0]?.totalEarning || 0),
+          availability: decorator?.status || "unknown",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Decorator dashboard summary failed" });
+      }
+    });
+
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
     res.status(503).send("Database Unavailable, Connection Failed!");
