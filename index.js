@@ -244,6 +244,14 @@ const run = async () => {
       const result = await servicesCollection.insertOne(newService);
       res.send(result);
     });
+    app.delete("/services/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await servicesCollection.deleteOne(query);
+      res.send(result);
+    });
 
     //! BOOKINGS RELATED APIS
     app.get("/bookings", verifyToken, async (req, res) => {
