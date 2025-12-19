@@ -253,6 +253,24 @@ const run = async () => {
       res.send(result);
     });
 
+    app.patch("/services/:id", async (req, res) => {
+      const { packageName, images, price, duration } = req.body;
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const updatedDoc = {
+        $set: {
+          packageName: packageName,
+          images: images,
+          price: price,
+          duration: duration,
+        },
+      };
+      const result = await servicesCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
     //! BOOKINGS RELATED APIS
     app.get("/bookings", verifyToken, async (req, res) => {
       const query = {};
