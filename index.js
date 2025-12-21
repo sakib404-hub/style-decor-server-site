@@ -344,8 +344,8 @@ const run = async () => {
         },
         mode: "payment",
         customer_email: paymentInfo.customerEmail,
-        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
+        success_url: `${process.env.CLIENT_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.CLIENT_DOMAIN}/dashboard/payment-cancel`,
       });
       res.send({ url: session.url });
     });
