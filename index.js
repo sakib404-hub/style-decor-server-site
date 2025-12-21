@@ -18,7 +18,10 @@ const client = new MongoClient(uri, {
 
 // firebase admin
 const admin = require("firebase-admin");
-const serviceAccount = require("./style-decor-admin.json");
+// const serviceAccount = require("./style-decor-admin.json");
+const decoded = Buffer.from(process.env.SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -56,7 +59,7 @@ const verifyToken = async (req, res, next) => {
 const run = async () => {
   try {
     //connecting with the mongo db and checking if the connection is successful
-    await client.connect();
+    // await client.connect();
     //creating the database and the collection
     const db = client.db("style-decor-db");
     const usersCollection = db.collection("users");
@@ -102,7 +105,7 @@ const run = async () => {
       res.send({ role: user.userRole || "user" });
     });
 
-    app.post("/users", verifyToken, async (req, res) => {
+    app.post("/users", async (req, res) => {
       try {
         const newUser = req.body;
         const userEmail = newUser.userEmail;
@@ -154,9 +157,7 @@ const run = async () => {
       const result = await cursor.toArray();
       res.send(result);
     });
-
     //?Updating both the user inforamtion and the booking information
-
     app.patch("/bookings/:id/assign", verifyToken, async (req, res) => {
       const bookingId = req.params.id;
       const { decoratorId } = req.body;
@@ -190,7 +191,6 @@ const run = async () => {
       );
       res.send({ message: true, updatedBookingResult, updatedUserResult });
     });
-
     //! SERVICES RELATED APIS
     app.get("/services", async (req, res) => {
       try {
@@ -227,7 +227,6 @@ const run = async () => {
       const result = await servicesCollection.findOne(query);
       res.send(result);
     });
-
     app.get("/latest-services", async (req, res) => {
       try {
         const limit = parseInt(req.query.limit) || 5;
@@ -252,7 +251,6 @@ const run = async () => {
       const result = await servicesCollection.deleteOne(query);
       res.send(result);
     });
-
     app.patch("/services/:id", async (req, res) => {
       const { packageName, images, price, duration } = req.body;
       const id = req.params.id;
@@ -270,7 +268,6 @@ const run = async () => {
       const result = await servicesCollection.updateOne(query, updatedDoc);
       res.send(result);
     });
-
     //! BOOKINGS RELATED APIS
     app.get("/bookings", verifyToken, async (req, res) => {
       const query = {};
@@ -286,7 +283,6 @@ const run = async () => {
       const result = await cursor.toArray();
       res.send(result);
     });
-
     app.patch("/bookings/:id/update", verifyToken, async (req, res) => {
       const id = req.params.id;
       const { status } = req.body;
@@ -301,7 +297,6 @@ const run = async () => {
       const result = await bookingsCollection.updateOne(query, updatedDoc);
       res.send(result);
     });
-
     app.get("/paidBookings", verifyToken, async (req, res) => {
       const status = req.query.status;
       const query = {
@@ -311,13 +306,11 @@ const run = async () => {
       const result = await cursor.toArray();
       res.send(result);
     });
-
     app.post("/bookings", verifyToken, async (req, res) => {
       const newBooking = req.body;
       const result = await bookingsCollection.insertOne(newBooking);
       res.send(result);
     });
-
     app.delete("/bookings/:id/delete", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = {
@@ -326,7 +319,6 @@ const run = async () => {
       const result = await bookingsCollection.deleteOne(query);
       res.send(result);
     });
-
     //! PAYMENT RELATED APIS
     app.post("/create-checkout-session", verifyToken, async (req, res) => {
       const paymentInfo = req.body;
@@ -357,7 +349,6 @@ const run = async () => {
       });
       res.send({ url: session.url });
     });
-
     app.patch("/payment-success", verifyToken, async (req, res) => {
       try {
         const session_id = req.query.session_id;
@@ -395,7 +386,6 @@ const run = async () => {
             query,
             updatedDoc
           );
-
           // Insert payment record
           const payment = {
             transactionId: transactionId,
@@ -409,7 +399,6 @@ const run = async () => {
             trackingId: trackingId,
           };
           const insertedPayment = await paymentsCollection.insertOne(payment);
-
           return res.send({
             success: true,
             updatedBooking: updateResult,
@@ -418,14 +407,12 @@ const run = async () => {
             trackingId: trackingId,
           });
         }
-
         res.send({ success: false });
       } catch (error) {
         console.error(error);
         res.status(500).send({ success: false, error: error.message });
       }
     });
-
     app.get("/payments", verifyToken, async (req, res) => {
       const query = {};
       const email = req.query.email;
@@ -436,7 +423,6 @@ const run = async () => {
       const result = await cursor.toArray();
       res.send(result);
     });
-
     //! COMPLETED SERVICES
     app.post("/completedService", verifyToken, async (req, res) => {
       try {
@@ -496,9 +482,7 @@ const run = async () => {
         res.status(500).send({ message: "Internal server error" });
       }
     });
-
     //! DashBoard Summery Api EndPoints
-
     // for dashboard
     app.get("/dashboard/admin/summary", verifyToken, async (req, res) => {
       try {
@@ -591,7 +575,6 @@ const run = async () => {
         res.status(500).send({ message: "Decorator dashboard summary failed" });
       }
     });
-
     app.get("/dashboard/user/summary", verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
@@ -637,7 +620,6 @@ const run = async () => {
         res.status(500).send({ message: "User dashboard summary failed" });
       }
     });
-
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
     res.status(503).send("Database Unavailable, Connection Failed!");
@@ -646,7 +628,7 @@ const run = async () => {
 run().catch(console.dir);
 
 app.get("/", async (req, res) => {
-  res.send("Hellow World!");
+  res.send("Hellow World!Makingggg!");
 });
 
 app.listen(port, () => {
