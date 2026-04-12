@@ -5,6 +5,7 @@ const port = process.env.PORT || 5016;
 require("dotenv").config();
 // stripe
 const stripe = require("stripe")(process.env.SECRET_KEY);
+
 // mongoDB connection
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@crud-operation.iftbw43.mongodb.net/?appName=CRUD-operation`;
@@ -59,7 +60,8 @@ const verifyToken = async (req, res, next) => {
 const run = async () => {
   try {
     //connecting with the mongo db and checking if the connection is successful
-    // await client.connect();
+    await client.connect();
+
     //creating the database and the collection
     const db = client.db("style-decor-db");
     const usersCollection = db.collection("users");
@@ -67,6 +69,7 @@ const run = async () => {
     const bookingsCollection = db.collection("bookings");
     const paymentsCollection = db.collection("payments");
     const completedServiceCollection = db.collection("completedService");
+    const subscriberEmailReq = db.collection("subscriberEmailCollection");
 
     //!USERS RELATED APIS
     app.get("/users", verifyToken, async (req, res) => {
@@ -183,11 +186,11 @@ const run = async () => {
       };
       const updatedBookingResult = await bookingsCollection.updateOne(
         queryBooking,
-        updatedBookingDoc
+        updatedBookingDoc,
       );
       const updatedUserResult = await usersCollection.updateOne(
         queryUser,
-        updatedUserDoc
+        updatedUserDoc,
       );
       res.send({ message: true, updatedBookingResult, updatedUserResult });
     });
@@ -384,7 +387,7 @@ const run = async () => {
           };
           const updateResult = await bookingsCollection.updateOne(
             query,
-            updatedDoc
+            updatedDoc,
           );
           // Insert payment record
           const payment = {
@@ -443,7 +446,7 @@ const run = async () => {
         // 2. Update decorator availability
         await usersCollection.updateOne(
           { userEmail: booking.decoratorEmail },
-          { $set: { status: "available" } }
+          { $set: { status: "available" } },
         );
 
         // 3. Insert into completed services
@@ -482,6 +485,7 @@ const run = async () => {
         res.status(500).send({ message: "Internal server error" });
       }
     });
+
     //! DashBoard Summery Api EndPoints
     // for dashboard
     app.get("/dashboard/admin/summary", verifyToken, async (req, res) => {
@@ -519,7 +523,7 @@ const run = async () => {
           ])
           .toArray();
         const totalDecoratorEarnings = Math.round(
-          totalDecoratorEarningsData[0]?.totalEarnings || 0
+          totalDecoratorEarningsData[0]?.totalEarnings || 0,
         );
         res.send({
           totalUsers,
@@ -562,7 +566,7 @@ const run = async () => {
           .toArray();
         const decorator = await usersCollection.findOne(
           { userEmail: email },
-          { projection: { status: 1 } }
+          { projection: { status: 1 } },
         );
         res.send({
           assignedServices,
@@ -620,11 +624,41 @@ const run = async () => {
         res.status(500).send({ message: "User dashboard summary failed" });
       }
     });
+
+    //? subscribed emailed
+    app.post("/subscribe", async (req, res) => {
+      try {
+        const { email } = req.body;
+        // basic validation
+        if (!email) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Email is required" });
+        }
+        // check duplicate
+        const existing = await subscriberEmailReq.findOne({ email });
+        if (existing) {
+          return res.send({ success: false, message: "Already subscribed" });
+        }
+        // insert properly as object
+        const result = await subscriberEmailReq.insertOne({
+          email,
+          createdAt: new Date(),
+        });
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ success: false, message: "Server error" });
+      }
+    });
+
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
   } catch (error) {
-    res.status(503).send("Database Unavailable, Connection Failed!");
+    console.log(error);
+    throw new Error("Database Unavailable, Connection Failed!");
   }
 };
+
 run().catch(console.dir);
 
 app.get("/", async (req, res) => {
