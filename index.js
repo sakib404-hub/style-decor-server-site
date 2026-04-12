@@ -70,6 +70,7 @@ const run = async () => {
     const paymentsCollection = db.collection("payments");
     const completedServiceCollection = db.collection("completedService");
     const subscriberEmailReq = db.collection("subscriberEmailCollection");
+    const messageCollection = db.collection("messageCollection");
 
     //!USERS RELATED APIS
     app.get("/users", verifyToken, async (req, res) => {
@@ -650,6 +651,12 @@ const run = async () => {
         console.error(error);
         res.status(500).send({ success: false, message: "Server error" });
       }
+    });
+
+    app.post("/sendMessage", async (req, res) => {
+      const newMessage = req.body;
+      const result = await messageCollection.insertOne(newMessage);
+      res.send(result);
     });
 
     //? CHECKING IF THE CONNECTION IS MADE WITH THE MONGODB
